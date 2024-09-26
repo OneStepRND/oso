@@ -31,7 +31,7 @@ jobs:
         working-directory: vscode/oso
         run: |
           make CARGO_FLAGS=--release package
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_vscode_extension
           path: vscode/oso/oso.vsix

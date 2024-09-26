@@ -1,6 +1,6 @@
 {
   "name": "oso",
-  "version": "0.27.3",
+  "version": "0.27.3+linux-arm64",
   "description": "oso authorization library.",
   "bin": "bin/repl.js",
   "main": "dist/src/index.js",

@@ -58,9 +58,10 @@ jobs:
       - run: |
           curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/octet-stream" $(curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -s https://api.github.com/repos/osohq/oso/releases/tags/v${{ github.event.inputs.version }} | jq -r '.assets[] | select(.name == "oso-lib-${{ github.event.inputs.version }}.zip") | .url') --output oso-lib-${{ github.event.inputs.version }}.zip
       - run: unzip oso-lib-${{ github.event.inputs.version }}.zip -d oso-lib-${{ github.event.inputs.version }}
-      - uses: actions/setup-java@v1
+      - uses: actions/setup-java@v4
         with:
           java-version: "11"
+          distribution: temurin
       - name: Copy libraries into resources.
         run: |
           mkdir -p languages/java/oso/src/main/resources/linux
@@ -128,10 +129,10 @@ jobs:
         run: |
           mkdir -p oso-js-node-${{ github.event.inputs.version }}
           tar -xzf oso-js-node-${{ github.event.inputs.version }}.tgz -C oso-js-node-${{ github.event.inputs.version }} --strip-components=1
-      - name: Use Node.js 12
-        uses: actions/setup-node@v1
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: "12"
+          node-version: "20"
       - name: Set up .npmrc
         working-directory: "oso-js-node-${{ github.event.inputs.version }}"
         run: echo '//registry.npmjs.org/:_authToken=${NPM_AUTH_TOKEN}' > .npmrc

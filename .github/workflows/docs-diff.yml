@@ -93,7 +93,7 @@ jobs:
         working-directory: docs
       - run: tar --create --verbose --gzip --file new-docs.tar.gz docs/public
       - name: Upload new build of docs.
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: new-docs.tar.gz
           path: new-docs.tar.gz
@@ -180,7 +180,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
       - run: tar --create --verbose --gzip --file old-docs.tar.gz docs/public
       - name: Upload old build of docs.
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: old-docs.tar.gz
           path: old-docs.tar.gz
@@ -217,7 +217,7 @@ jobs:
         if: ${{ steps.diff.outcome == 'failure' }}
         continue-on-error: true
       - name: Upload diff artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: full-diff
           path: diff-full.txt

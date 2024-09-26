@@ -3,7 +3,7 @@ import oso
 
 from .oso import Oso
 
-__version__ = "0.27.1"
+__version__ = "0.27.3+linux-arm64"
 
 if django.VERSION < (3, 2):
     default_app_config = "django_oso.apps.DjangoOsoConfig"

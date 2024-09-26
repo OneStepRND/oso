@@ -44,7 +44,7 @@ jobs:
 
       ## Check Python
       - name: Install Python 3.9
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: "3.9"
       - name: Install Python formatter
@@ -66,10 +66,10 @@ jobs:
         run: make typecheck | grep '0 problems found in 0 of'
 
       ## Check Node.js
-      - name: Use Node.js 12
-        uses: actions/setup-node@v1
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: "12"
+          node-version: "20"
       - name: Check formatting of JS library
         working-directory: "languages/js"
         run: make fmtcheck
@@ -83,9 +83,10 @@ jobs:
 
       ## Check Java
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
           java-version: "11"
+          distribution: temurin
       - name: Check formatting of Java library
         uses: axel-op/googlejavaformat-action@v3
         with:
@@ -173,7 +174,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Install Python 3.9
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: "3.9"
       - name: Test python
@@ -240,9 +241,10 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
           java-version: "11"
+          distribution: temurin
       - name: Test java
         run: make java-test
         env:
@@ -271,7 +273,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Use Node.js 12
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
           node-version: "12"
       - name: Add WebAssembly target
@@ -306,7 +308,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Use Go 1.14
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: "1.14"
       - name: Test go
@@ -329,7 +331,7 @@ jobs:
             ${{ runner.os }}-cargo-test-
 
       - name: Install Python 3.9
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: "3.9"
 
@@ -355,9 +357,10 @@ jobs:
         with:
           node-version: "18"
       - name: Install Java
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
           java-version: "11"
+          distribution: temurin
       - name: Build python lib
         run: make python-build
       - name: Build ruby lib

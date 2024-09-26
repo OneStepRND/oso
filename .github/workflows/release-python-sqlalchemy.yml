@@ -44,7 +44,7 @@ jobs:
         run: |
           python -m pip wheel --no-deps -w wheelhouse .
         working-directory: languages/python/sqlalchemy-oso
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: wheel
           path: languages/python/sqlalchemy-oso/wheelhouse/*.whl
@@ -64,7 +64,7 @@ jobs:
           github_ref: ${{ github.ref }}
         run: echo "::set-output name=oso_version::${github_ref/refs\/tags\/sqlalchemy-v/}"
       - name: Download oso python wheels from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: wheel
       - name: Zip file

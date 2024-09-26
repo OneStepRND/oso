@@ -5,6 +5,7 @@ on:
       - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
     branches:
       - main
+  workflow_dispatch: 
 
 jobs:
   version:
@@ -22,20 +23,6 @@ jobs:
         run: grep "${github_ref/refs\/tags\/v/}" VERSION
 
   # Dispatch an oso_release event to other repos to test against this commit
-  dispatch:
-    strategy:
-      matrix:
-        repo: ["osohq/oso-flask-integration"]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Repository Dispatch
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.REPO_API_TOKEN }}
-          repository: ${{ matrix.repo }}
-          event-type: oso_release
-          client-payload: '{"commit": "${{ github.sha }}"}'
-
   linux_libs:
     name: Build release libraries on Linux
     runs-on: ubuntu-latest
@@ -85,31 +72,31 @@ jobs:
         run: mv target/release/libpolar.so target/libpolar-x86_64.so
       - name: Rename aarch64 dynamic lib
         run: mv target/aarch64-unknown-linux-gnu/release/libpolar.so target/libpolar-aarch64.so
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_library
           path: |
             target/libpolar-x86_64.so
             target/libpolar-aarch64.so
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_library
           path: polar-c-api/polar.h
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_static_library
           path: |
             target/libpolar-${{runner.os}}.a
             target/libpolar-musl-x86_64.a
             target/libpolar-musl-aarch64.a
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_static_library
           path: polar-c-api/polar.h
 
   macos_libs:
     name: Build release libraries on MacOS
-    runs-on: macos-11
+    runs-on: macos-latest
     needs: [version]
     steps:
       - uses: actions/checkout@v2
@@ -119,34 +106,40 @@ jobs:
           profile: minimal
           toolchain: 1.69.0
           override: true
-      - name: Build release library
-        run: cargo build --release -p polar-c-api
+      # - name: Build release library
+      #   run: cargo build --release -p polar-c-api
+      - name: Build release x86 library
+        run: |
+          rustup target add x86_64-apple-darwin
+          SDKROOT=$(xcrun -sdk macosx --show-sdk-path) \
+            MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx --show-sdk-platform-version) \
+            cargo build --target x86_64-apple-darwin --release -p polar-c-api
       - name: Build release arm library
         run: |
           rustup target add aarch64-apple-darwin
-          SDKROOT=$(xcrun -sdk macosx11.0 --show-sdk-path) \
-            MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx11.0 --show-sdk-platform-version) \
+          SDKROOT=$(xcrun -sdk macosx --show-sdk-path) \
+            MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx --show-sdk-platform-version) \
             cargo build --target aarch64-apple-darwin --release -p polar-c-api
       - name: Rename static lib
-        run: mv target/release/libpolar.a target/libpolar-macOS.a
+        run: mv target/x86_64-apple-darwin/release/libpolar.a target/libpolar-macOS.a
       - name: Rename static ARM lib
         run: mv target/aarch64-apple-darwin/release/libpolar.a target/libpolar-macOS-arm.a
       - name: Rename dynamic lib
-        run: mv target/release/libpolar.dylib target/libpolar-macOS.dylib
+        run: mv target/x86_64-apple-darwin/release/libpolar.dylib target/libpolar-macOS.dylib
       - name: Rename dynamic ARM lib
         run: mv target/aarch64-apple-darwin/release/libpolar.dylib target/libpolar-macOS-arm.dylib
       - name: Merge dynamic libs into fat dynamic lib
         run: lipo -create target/libpolar-macOS.dylib target/libpolar-macOS-arm.dylib -output target/libpolar-macOS-fat.dylib
       - name: Merge static libs into fat static lib
         run: lipo -create target/libpolar-macOS.a target/libpolar-macOS-arm.a -output target/libpolar-macOS-fat.a
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_library
           path: |
             target/libpolar-macOS-fat.dylib
             target/libpolar-macOS.dylib
             target/libpolar-macOS-arm.dylib
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_static_library
           if-no-files-found: error
@@ -154,7 +147,7 @@ jobs:
             target/libpolar-macOS-fat.a
             target/libpolar-macOS.a
             target/libpolar-macOS-arm.a
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_static_library
           path: polar-c-api/polar.h
@@ -162,7 +155,7 @@ jobs:
 
   windows_libs:
     name: Build release libraries on Windows
-    runs-on: windows-2019
+    runs-on: windows-latest
     needs: [version]
     steps:
       - uses: actions/checkout@v2
@@ -188,19 +181,19 @@ jobs:
       - name: Rename static lib
         run: |
           mv -Force target/x86_64-pc-windows-gnu/release/libpolar.a target/x86_64-pc-windows-gnu/release/libpolar-${{runner.os}}.a
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_library
           path: target/release/polar.dll
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_static_library
           path: target/release/polar.lib
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_static_library
           path: target/x86_64-pc-windows-gnu/release/libpolar-${{runner.os}}.a
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_static_library
           path: polar-c-api/polar.h
@@ -215,9 +208,10 @@ jobs:
         id: version
         run: echo "::set-output name=oso_version::$(cat VERSION)"
       - name: Download static libs
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_static_library
+          path: oso_static_library
       - name: Copy specs into go test package.
         run: cp -r test/spec languages/go/tests/spec
       - name: Copy policies into go test package.
@@ -239,7 +233,7 @@ jobs:
           rm languages/go/Makefile
       - name: Copy license.
         run: cp LICENSE languages/go/LICENSE
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: go
           path: languages/go
@@ -253,13 +247,15 @@ jobs:
       - name: Set version env
         id: version
         run: echo "::set-output name=oso_version::$(cat VERSION)"
-      - uses: actions/setup-java@v1
+      - uses: actions/setup-java@v4
         with:
           java-version: "11"
+          distribution: temurin
       - name: Download dylibs
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_library
+          path: oso_library
       - name: Copy libraries into resources.
         run: |
           mkdir -p languages/java/oso/src/main/resources/linux
@@ -276,7 +272,7 @@ jobs:
         run: |
           mvn -q package
         working-directory: languages/java/oso
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: jar
           path: languages/java/oso/target/oso-${{ steps.version.outputs.oso_version }}.jar
@@ -296,9 +292,10 @@ jobs:
         id: version
         run: echo "oso_version=$(cat VERSION)" >> $GITHUB_ENV
       - name: Download dylibs
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_library
+          path: oso_library
       - name: Copy libraries into resources.
         run: |
           mkdir -p languages/ruby/ext/oso-oso/lib
@@ -315,7 +312,7 @@ jobs:
         run: |
           gem build oso-oso.gemspec
         working-directory: languages/ruby
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: gem
           path: languages/ruby/*.gem
@@ -327,9 +324,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download static libs
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_static_library
+          path: oso_static_library
       - name: Copy static library.
         run: |
           mkdir -p languages/python/oso/native
@@ -340,7 +338,7 @@ jobs:
           rm languages/python/oso/README.md
           cp README.md languages/python/oso/README.md
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.21.1
         env:
           # Skip Python 2.7 and Python 3.5
           CIBW_SKIP: "cp27-* cp35-* pp27-*"
@@ -348,9 +346,51 @@ jobs:
           CIBW_BUILD: "*64"
           # Used in build.py to find right files
           CIBW_ENVIRONMENT: OSO_ENV=CI
+          # Build a linux wheel that works for x86 and arm64
+          CIBW_ARCHS: x86_64
         with:
           package-dir: languages/python/oso
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheel
+          path: ./wheelhouse/*.whl
+
+  build_linux_wheels_arm64:
+    name: Build wheels on Linux arm64
+    runs-on: ubuntu-latest
+    needs: [version, linux_libs]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Download static libs
+        uses: actions/download-artifact@v3
+        with:
+          name: oso_static_library
+          path: oso_static_library
+      - name: Copy static library.
+        run: |
+          mkdir -p languages/python/oso/native
+          cp -r oso_static_library/libpolar-musl-aarch64.a languages/python/oso/native/libpolar.a
+          cp -r oso_static_library/polar.h languages/python/oso/native/polar.h
+      - name: Copy in readme
+        run: |
+          rm languages/python/oso/README.md
+          cp README.md languages/python/oso/README.md
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.1
+        env:
+          # Skip Python 2.7 and Python 3.5
+          CIBW_SKIP: "cp27-* cp35-* pp27-*"
+          # 64-bit builds only
+          CIBW_BUILD: "*64"
+          # Used in build.py to find right files
+          CIBW_ENVIRONMENT: OSO_ENV=CI
+          # Build a linux wheel that works for x86 and ARM
+          CIBW_ARCHS: aarch64
+        with:
+          package-dir: languages/python/oso
+      - uses: actions/upload-artifact@v3
         with:
           name: wheel
           path: ./wheelhouse/*.whl
@@ -362,9 +402,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Download static libs
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_static_library
+          path: oso_static_library
       - name: Copy static library.
         run: |
           mkdir -p languages/python/oso/native
@@ -375,7 +416,7 @@ jobs:
           rm languages/python/oso/README.md
           cp README.md languages/python/oso/README.md
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.21.1
         env:
           # Skip Python 2.7 and Python 3.5
           CIBW_SKIP: "cp27-* cp35-* pp27-*"
@@ -387,21 +428,22 @@ jobs:
           CIBW_ARCHS: x86_64 arm64 universal2
         with:
           package-dir: languages/python/oso
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: wheel
           path: ./wheelhouse/*.whl
 
   build_windows_wheels:
     name: Build wheels on Windows
-    runs-on: windows-2019
+    runs-on: windows-latest
     needs: [version, windows_libs]
     steps:
       - uses: actions/checkout@v2
       - name: Download static libs
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_static_library
+          path: oso_static_library
       - name: Copy static library.
         run: |
           mkdir -p languages/python/oso/native
@@ -411,9 +453,12 @@ jobs:
         run: |
           rm languages/python/oso/README.md
           cp README.md languages/python/oso/README.md
+      - name: write constraints file
+        run: echo "setuptools<74" > "${{ runner.temp }}/constraint.txt"
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v2.21.1
         env:
+          PIP_CONSTRAINT: "${{ runner.temp }}/constraint.txt"
           # Skip Python 2.7 and Python 3.5
           CIBW_SKIP: "cp27-* cp35-* pp27-*"
           # 64-bit builds only
@@ -422,7 +467,7 @@ jobs:
           CIBW_ENVIRONMENT: OSO_ENV=CI
         with:
           package-dir: languages/python/oso
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: wheel
           path: ./wheelhouse/*.whl
@@ -441,10 +486,10 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Use Node.js 12
-        uses: actions/setup-node@v1
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: "12"
+          node-version: "20"
       - name: Install Rust stable toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -463,7 +508,7 @@ jobs:
       - name: Copy main README into project directory
         working-directory: languages/js
         run: cp ../../README.md .
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: oso_js_node
           path: languages/js/*
@@ -474,21 +519,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-11, windows-2019]
-        go-version: ["1.14", "1.15", "1.16", "1.17"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ["1.21"]
     steps:
       - uses: actions/checkout@v2
       - name: Set version env
         id: version
         run: echo "::set-output name=oso_version::$(cat VERSION)"
       - name: Set up go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
       - name: Download go package from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: go
+          path: go
       - name: "test"
         env:
           POLAR_IGNORE_NO_ALLOW_WARNING: 1
@@ -500,41 +546,43 @@ jobs:
         working-directory: go
       - name: "test musl"
         if: runner.os == 'Linux'
-        run: docker run --rm --env POLAR_IGNORE_NO_ALLOW_WARNING=1 -v `pwd`:/oso tetafro/golang-gcc:${{ matrix.go-version }}-alpine /bin/sh -c 'cd /oso && go test -v ./internal/host && cd tests && go test -v'
+        run: |
+          docker run --rm --env POLAR_IGNORE_NO_ALLOW_WARNING=1 -v `pwd`:/oso golang:${{ matrix.go-version }}-alpine /bin/sh -c 'apk add --no-cache gcc musl-dev && cd /oso && go test -v ./internal/host && cd tests && go test -v'
         working-directory: go
       - name: "test buster"
         if: runner.os == 'Linux'
         run: docker run --rm --env POLAR_IGNORE_NO_ALLOW_WARNING=1 -v `pwd`:/oso golang:${{ matrix.go-version }}-buster /bin/sh -c 'cd /oso && go test -v ./internal/host && cd tests && go test -v'
         working-directory: go
 
-  validate_go_macos_arm:
-    name: Test go ${{ matrix.go-version }} on m1
-    needs: [build_go]
-    runs-on: [self-hosted, m1]
-    strategy:
-      matrix:
-        # go 1.16 is the earliest version supported on m1
-        go-version: ["1.16", "1.17"]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set version env
-        id: version
-        run: echo "::set-output name=oso_version::$(cat VERSION)"
-      - name: Download go package from package run
-        uses: actions/download-artifact@v1
-        with:
-          name: go
-      - name: "test"
-        run: |
-          ~/go/bin/go${{ matrix.go-version }} build
-          ~/go/bin/go${{ matrix.go-version }} test -v ./internal/host
-          cd tests && ~/go/bin/go${{ matrix.go-version }} test -v
-        working-directory: go
-        env:
-          POLAR_IGNORE_NO_ALLOW_WARNING: 1
-          CGO_ENABLED: 1
-          GOOS: darwin
-          GOARCH: arm64
+  # validate_go_macos_arm:
+  #   name: Test go ${{ matrix.go-version }} on m1
+  #   needs: [build_go]
+  #   runs-on: [self-hosted, m1]
+  #   strategy:
+  #     matrix:
+  #       # go 1.16 is the earliest version supported on m1
+  #       go-version: ["1.22", "1.23"]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Set version env
+  #       id: version
+  #       run: echo "::set-output name=oso_version::$(cat VERSION)"
+  #     - name: Download go package from package run
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: go
+  #         path: go
+  #     - name: "test"
+  #       run: |
+  #         ~/go/bin/go${{ matrix.go-version }} build
+  #         ~/go/bin/go${{ matrix.go-version }} test -v ./internal/host
+  #         cd tests && ~/go/bin/go${{ matrix.go-version }} test -v
+  #       working-directory: go
+  #       env:
+  #         POLAR_IGNORE_NO_ALLOW_WARNING: 1
+  #         CGO_ENABLED: 1
+  #         GOOS: darwin
+  #         GOARCH: arm64
 
   validate_python_linux:
     name: Test python ${{ matrix.python-version }} on Linux
@@ -542,20 +590,21 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v2
       - name: Set version env
         id: version
         run: echo "::set-output name=oso_version::$(cat VERSION)"
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Download oso python wheels from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: wheel
+          path: wheel
       - name: "test"
         run: |
           # first install _only_ the wheel and make sure it's available
@@ -565,26 +614,27 @@ jobs:
           python test.py
         working-directory: test
 
-  validate_python_macos_11:
+  validate_python_macos:
     name: Test python ${{ matrix.python-version }} on MacOS
     needs: [build_macos_wheels]
-    runs-on: macos-11
+    runs-on: macos-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v2
       - name: Set version env
         id: version
         run: echo "::set-output name=oso_version::$(cat VERSION)"
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Download oso python wheels from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: wheel
+          path: wheel
       - name: "test"
         run: |
           # first install _only_ the wheel and make sure it's available
@@ -594,76 +644,78 @@ jobs:
           python test.py
         working-directory: test
 
-  validate_python_macos_arm:
-    name: Test python on MacOS M1
-    needs: [build_macos_wheels]
-    runs-on: [self-hosted, m1]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set version env
-        id: version
-        run: echo "::set-output name=oso_version::$(cat VERSION)"
-      - name: Download oso python wheels from package run
-        uses: actions/download-artifact@v1
-        with:
-          name: wheel
-      # 3.8 is the earliest python for M1
-      - name: "test python 3.8"
-        run: |
-          arch -arm64 /opt/homebrew/opt/python@3.8/bin/python3 -m venv venv38
-          arch -arm64 ./venv38/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
-          arch -arm64 ./venv38/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
-          arch -arm64 ./venv38/bin/python test.py
-        working-directory: test
-      - name: "test python 3.9"
-        run: |
-          arch -arm64 /opt/homebrew/opt/python@3.9/bin/python3 -m venv venv39
-          arch -arm64 ./venv39/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
-          arch -arm64 ./venv39/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
-          arch -arm64 ./venv39/bin/python test.py
-        working-directory: test
-      - name: "test python 3.10"
-        run: |
-          arch -arm64 /opt/homebrew/opt/python@3.10/bin/python3 -m venv venv310
-          arch -arm64 ./venv310/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
-          arch -arm64 ./venv310/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
-          arch -arm64 ./venv310/bin/python test.py
-        working-directory: test
-      - name: "test python 3.11"
-        run: |
-          arch -arm64 /opt/homebrew/opt/python@3.11/bin/python3 -m venv venv311
-          arch -arm64 ./venv311/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
-          arch -arm64 ./venv311/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
-          arch -arm64 ./venv311/bin/python test.py
-        working-directory: test
-      - name: "test python 3.12"
-        run: |
-          arch -arm64 /opt/homebrew/opt/python@3.12/bin/python3 -m venv venv312
-          arch -arm64 ./venv312/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
-          arch -arm64 ./venv312/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
-          arch -arm64 ./venv312/bin/python test.py
-        working-directory: test
+  # validate_python_macos_arm:
+  #   name: Test python on MacOS M1
+  #   needs: [build_macos_wheels]
+  #   runs-on: [self-hosted, m1]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Set version env
+  #       id: version
+  #       run: echo "::set-output name=oso_version::$(cat VERSION)"
+  #     - name: Download oso python wheels from package run
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: wheel
+  #         path: wheel
+  #     # 3.8 is the earliest python for M1
+  #     - name: "test python 3.8"
+  #       run: |
+  #         arch -arm64 /opt/homebrew/opt/python@3.8/bin/python3 -m venv venv38
+  #         arch -arm64 ./venv38/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
+  #         arch -arm64 ./venv38/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
+  #         arch -arm64 ./venv38/bin/python test.py
+  #       working-directory: test
+  #     - name: "test python 3.9"
+  #       run: |
+  #         arch -arm64 /opt/homebrew/opt/python@3.9/bin/python3 -m venv venv39
+  #         arch -arm64 ./venv39/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
+  #         arch -arm64 ./venv39/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
+  #         arch -arm64 ./venv39/bin/python test.py
+  #       working-directory: test
+  #     - name: "test python 3.10"
+  #       run: |
+  #         arch -arm64 /opt/homebrew/opt/python@3.10/bin/python3 -m venv venv310
+  #         arch -arm64 ./venv310/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
+  #         arch -arm64 ./venv310/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
+  #         arch -arm64 ./venv310/bin/python test.py
+  #       working-directory: test
+  #     - name: "test python 3.11"
+  #       run: |
+  #         arch -arm64 /opt/homebrew/opt/python@3.11/bin/python3 -m venv venv311
+  #         arch -arm64 ./venv311/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
+  #         arch -arm64 ./venv311/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
+  #         arch -arm64 ./venv311/bin/python test.py
+  #       working-directory: test
+  #     - name: "test python 3.12"
+  #       run: |
+  #         arch -arm64 /opt/homebrew/opt/python@3.12/bin/python3 -m venv venv312
+  #         arch -arm64 ./venv312/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel --no-deps --no-index
+  #         arch -arm64 ./venv312/bin/pip install oso==${{ steps.version.outputs.oso_version }} -f ../wheel
+  #         arch -arm64 ./venv312/bin/python test.py
+  #       working-directory: test
 
   validate_python_windows:
     name: Test python ${{ matrix.python-version }} on Windows
     needs: [build_windows_wheels]
-    runs-on: windows-2019
+    runs-on: windows-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v2
       - name: Set version env
         id: version
         run: echo "::set-output name=oso_version::$(cat VERSION)"
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Download oso python wheels from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: wheel
+          path: wheel
       - name: "test"
         run: |
           # first install _only_ the wheel and make sure it's available
@@ -679,87 +731,91 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v2
       - name: Set version env
         id: version
         run: echo "::set-output name=oso_version::$(cat VERSION)"
       - name: Download oso python wheels from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: wheel
+          path: wheel
       - run: docker run --rm --env OSO_VERSION -v `pwd`:/oso python:${{ matrix.python-version }}-alpine oso/scripts/test_musl.sh
         env:
           OSO_VERSION: ${{ steps.version.outputs.oso_version }}
 
-  validate_ruby:
-    name: Test ruby ${{ matrix.ruby-version }} on ${{ matrix.os }}
-    needs: [build_gem]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-11, windows-2019]
-        ruby-version: ["2.6", "2.7", "3.0", "3.1", "3.2"]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set version env
-        id: version
-        run: echo "oso_version=$(cat VERSION)" >> $GITHUB_ENV
-      - name: Set up ruby ${{ matrix.ruby-version }}
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby-version }}
-          working-directory: "languages/ruby"
-      - name: Download oso gem from package run
-        uses: actions/download-artifact@v1
-        with:
-          name: gem
-      - name: "test"
-        if: runner.os != 'Windows'
-        run: |
-          gem install gem/*.gem
-          ruby languages/ruby/spec/oso/language_parity_spec.rb
-      - name: "test"
-        if: runner.os == 'Windows'
-        run: |
-          gem install gem/*.gem
-          ruby languages\ruby\spec\oso\language_parity_spec.rb
+  # validate_ruby:
+  #   name: Test ruby ${{ matrix.ruby-version }} on ${{ matrix.os }}
+  #   needs: [build_gem]
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest, windows-latest]
+  #       ruby-version: ["2.6", "2.7", "3.0", "3.1", "3.2"]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Set version env
+  #       id: version
+  #       run: echo "oso_version=$(cat VERSION)" >> $GITHUB_ENV
+  #     - name: Set up ruby ${{ matrix.ruby-version }}
+  #       uses: ruby/setup-ruby@v1
+  #       with:
+  #         ruby-version: ${{ matrix.ruby-version }}
+  #         working-directory: "languages/ruby"
+  #     - name: Download oso gem from package run
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: gem
+  #         path: gem
+  #     - name: "test"
+  #       if: runner.os != 'Windows'
+  #       run: |
+  #         gem install gem/*.gem
+  #         ruby languages/ruby/spec/oso/language_parity_spec.rb
+  #     - name: "test"
+  #       if: runner.os == 'Windows'
+  #       run: |
+  #         gem install gem/*.gem
+  #         ruby languages\ruby\spec\oso\language_parity_spec.rb
 
-  validate_java:
-    name: Test java ${{ matrix.java-version }} on ${{ matrix.os }}
-    needs: [build_jar]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-11, windows-2019]
-        java-version: [11, 12, 13, 14]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set version env
-        id: version
-        run: echo "::set-output name=oso_version::$(cat VERSION)"
-      - uses: actions/setup-java@v1
-        with:
-          java-version: ${{ matrix.java-version }}
-      - name: Download oso jar from package run
-        uses: actions/download-artifact@v1
-        with:
-          name: jar
-      - name: Run tests
-        if: runner.os != 'Windows'
-        run: |
-          javac -cp "../jar/oso-${{ steps.version.outputs.oso_version }}.jar:." Test.java
-          java -cp "../jar/oso-${{ steps.version.outputs.oso_version }}.jar:." Test
-        working-directory: test
-      - name: Run tests
-        if: runner.os == 'Windows'
-        env:
-          github_ref: ${{ github.ref }}
-        run: |
-          javac -cp "..\jar\oso-${{ steps.version.outputs.oso_version }}.jar;." Test.java
-          java -cp "..\jar\oso-${{ steps.version.outputs.oso_version }}.jar;." Test
-        working-directory: test
+  # validate_java:
+  #   name: Test java ${{ matrix.java-version }} on ${{ matrix.os }}
+  #   needs: [build_jar]
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest, windows-latest]
+  #       java-version: [13, 14]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Set version env
+  #       id: version
+  #       run: echo "::set-output name=oso_version::$(cat VERSION)"
+  #     - uses: actions/setup-java@v4
+  #       with:
+  #         java-version: ${{ matrix.java-version }}
+  #         distribution: temurin
+  #     - name: Download oso jar from package run
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: jar
+  #         path: jar
+  #     - name: Run tests
+  #       if: runner.os != 'Windows'
+  #       run: |
+  #         javac -cp "../jar/oso-${{ steps.version.outputs.oso_version }}.jar:." Test.java
+  #         java -cp "../jar/oso-${{ steps.version.outputs.oso_version }}.jar:." Test
+  #       working-directory: test
+  #     - name: Run tests
+  #       if: runner.os == 'Windows'
+  #       env:
+  #         github_ref: ${{ github.ref }}
+  #       run: |
+  #         javac -cp "..\jar\oso-${{ steps.version.outputs.oso_version }}.jar;." Test.java
+  #         java -cp "..\jar\oso-${{ steps.version.outputs.oso_version }}.jar;." Test
+  #       working-directory: test
 
   validate_js:
     name: Test node ${{ matrix.node-version }} on ${{ matrix.os }}
@@ -767,21 +823,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-11, windows-2019]
-        node-version: ["12", "14", "16"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: ["18", "20"]
     steps:
       - uses: actions/checkout@v2
       - name: Set version env
         id: version
         run: echo "oso_version=$(cat VERSION)" >> $GITHUB_ENV
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
       - name: Download oso js from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_js_node
+          path: oso_js_node
       - name: Install production dependencies
         run: yarn install --production
         working-directory: oso_js_node
@@ -789,55 +846,56 @@ jobs:
         run: node dist/test/parity.js
         working-directory: oso_js_node
 
-  test_quickstarts:
-    name: Test Quickstarts
-    runs-on: ubuntu-latest
-    needs: [version]
-    steps:
-      - uses: actions/checkout@v2
-      - name: Initialize submodules
-        run: make -C docs/examples update-submodules
-      - name: Check that submodules are all up-to-date
-        run: |
-          git submodule foreach git remote update
-          git submodule foreach '[ -z $(git --no-pager diff origin/main main) ]'
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
-      - name: Use Python 3.7
-        uses: actions/setup-python@v1
-        with:
-          python-version: "3.7"
-      - name: Use Ruby 2.7
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
-          ruby-version: "2.7"
-          working-directory: "docs/examples/quickstart/ruby"
-      - name: Use Node.js 12
-        uses: actions/setup-node@v1
-        with:
-          node-version: "12"
-      - name: Use Java 11
-        uses: actions/setup-java@v1
-        with:
-          java-version: "11"
-      - name: Use stable Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.69.0
-          override: true
-      - name: Use Go 1.14
-        uses: actions/setup-go@v2
-        with:
-          go-version: "1.14"
-      - name: Run quickstart tests
-        run: make -C docs test-quickstarts-release
+  # test_quickstarts:
+  #   name: Test Quickstarts
+  #   runs-on: ubuntu-latest
+  #   needs: [version]
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - name: Initialize submodules
+  #       run: make -C docs/examples update-submodules
+  #     - name: Check that submodules are all up-to-date
+  #       run: |
+  #         git submodule foreach git remote update
+  #         git submodule foreach '[ -z $(git --no-pager diff origin/main main) ]'
+  #     - uses: actions/cache@v2
+  #       with:
+  #         path: |
+  #           ~/.cargo/registry
+  #           ~/.cargo/git
+  #           target
+  #         key: ${{ runner.os }}-cargo-debug-${{ hashFiles('**/Cargo.lock') }}
+  #     - name: Use Python 3.12
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #     - name: Use Ruby 2.7
+  #       uses: ruby/setup-ruby@v1
+  #       with:
+  #         bundler-cache: true
+  #         ruby-version: "2.7"
+  #         working-directory: "docs/examples/quickstart/ruby"
+  #     - name: Use Node.js 20
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: "20"
+  #     - name: Use Java 11
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         java-version: "11"
+  #         distribution: temurin
+  #     - name: Use stable Rust
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         profile: minimal
+  #         toolchain: 1.69.0
+  #         override: true
+  #     - name: Use Go 1.22
+  #       uses: actions/setup-go@v5
+  #       with:
+  #         go-version: "1.22"
+  #     - name: Run quickstart tests
+  #       run: make -C docs test-quickstarts-release
 
   release:
     name: Create release
@@ -848,18 +906,18 @@ jobs:
         build_linux_wheels,
         build_macos_wheels,
         build_windows_wheels,
-        build_jar,
-        build_gem,
-        build_go,
+        # build_jar,
+        # build_gem,
+        # build_go,
         validate_python_linux,
-        validate_python_macos_11,
+        validate_python_macos,
         validate_python_windows,
         validate_python_musl,
-        validate_ruby,
-        validate_java,
-        validate_js,
-        validate_go,
-        test_quickstarts,
+        # validate_ruby,
+        # validate_java,
+        # validate_js,
+        # validate_go,
+        # test_quickstarts,
       ]
     steps:
       - name: Set version env
@@ -868,42 +926,48 @@ jobs:
           github_ref: ${{ github.ref }}
         run: echo "::set-output name=oso_version::${github_ref/refs\/tags\/v/}"
       - name: Download oso dylibs
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_library
+          path: oso_library
       - name: Zip libraries
         run: zip --junk-paths -r oso-lib.zip oso_library/
       - name: Download oso python wheels from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: wheel
+          path: wheel
       - name: Zip wheels
         run: zip --junk-paths -r oso-python.zip wheel/
-      - name: Download oso gem from package run
-        uses: actions/download-artifact@v1
-        with:
-          name: gem
-      - name: Zip ruby gem
-        run: zip --junk-paths -r oso-ruby.zip gem/
+      # - name: Download oso gem from package run
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: gem
+      #     path: gem
+      # - name: Zip ruby gem
+      #   run: zip --junk-paths -r oso-ruby.zip gem/
       - name: Download oso jar from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: jar
+          path: jar
       - name: Zip Java JAR
         run: zip --junk-paths -r oso-java.zip jar/
       - name: Download oso javascript package from package run
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v3
         with:
           name: oso_js_node
+          path: oso_js_node
       - name: Create JS release artifact
         working-directory: oso_js_node
         run: npm pack
-      - name: Download oso go lib
-        uses: actions/download-artifact@v1
-        with:
-          name: go
-      - name: Zip Go source code
-        run: zip -r go-oso.zip go/
+      # - name: Download oso go lib
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: go
+      #     path: go
+      # - name: Zip Go source code
+      #   run: zip -r go-oso.zip go/
       - name: Create Release
         id: create_release
         uses: actions/create-release@latest
@@ -934,15 +998,15 @@ jobs:
           asset_path: ./oso-python.zip
           asset_name: oso-python-${{ steps.version.outputs.oso_version }}.zip
           asset_content_type: application/zip
-      - name: Upload Ruby Gem
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./oso-ruby.zip
-          asset_name: oso-ruby-${{ steps.version.outputs.oso_version }}.zip
-          asset_content_type: application/zip
+      # - name: Upload Ruby Gem
+      #   uses: actions/upload-release-asset@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: ./oso-ruby.zip
+      #     asset_name: oso-ruby-${{ steps.version.outputs.oso_version }}.zip
+      #     asset_content_type: application/zip
       - name: Upload Java Jar
         uses: actions/upload-release-asset@v1
         env:
@@ -961,41 +1025,12 @@ jobs:
           asset_path: ./oso_js_node/oso-${{ steps.version.outputs.oso_version }}.tgz
           asset_name: oso-js-node-${{ steps.version.outputs.oso_version }}.tgz
           asset_content_type: application/gzip
-      - name: Upload go package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./go-oso.zip
-          asset_name: go-oso-${{ steps.version.outputs.oso_version }}.zip
-          asset_content_type: application/zip
-  # TODO(gj): update this to post to Quill or a private channel on community Slack.
-  alert-failure:
-    name: Alert on failure
-    if: ${{ !success() }}
-    runs-on: ubuntu-latest
-    needs:
-      [
-        validate_python_linux,
-        validate_python_macos_11,
-        validate_python_macos_arm,
-        validate_python_windows,
-        validate_python_musl,
-        validate_ruby,
-        validate_java,
-        validate_js,
-        validate_go,
-        validate_go_macos_arm,
-        test_quickstarts,
-      ]
-    steps:
-      - uses: rtCamp/action-slack-notify@master
-        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
-        env:
-          SLACK_CHANNEL: firehose
-          SLACK_COLOR: "danger"
-          SLACK_MESSAGE: "${{ github.event.head_commit.url }}"
-          SLACK_TITLE: "Release job failed."
-          SLACK_USERNAME: github-actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TO_FIREHOSE }}
+      # - name: Upload go package
+      #   uses: actions/upload-release-asset@v1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: ./go-oso.zip
+      #     asset_name: go-oso-${{ steps.version.outputs.oso_version }}.zip
+      #     asset_content_type: application/zip

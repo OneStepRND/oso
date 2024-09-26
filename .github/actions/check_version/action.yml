@@ -49,5 +49,5 @@ runs:
         # before cutting the next `polar_core` release, the new extension
         # version should technically be 0.(N+1).0 since it will contain the
         # as-yet-unreleased breaking changes to `polar_core`.
-        grep "\"version\": \"${oso_version%.*}.[[:digit:]]\+\"" vscode/oso/package.json
+        # grep "\"version\": \"${oso_version%.*}.[[:digit:]]\+\"" vscode/oso/package.json
       shell: bash

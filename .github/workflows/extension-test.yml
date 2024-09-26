@@ -22,10 +22,10 @@ jobs:
 
       # NOTE(gj): Rust formatting & Clippy check happens in test.yml.
 
-      - name: Use Node.js 12
-        uses: actions/setup-node@v1
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: "12"
+          node-version: "20"
       - name: Check formatting of JS library
         working-directory: "vscode/oso"
         run: make fmtcheck
@@ -72,16 +72,11 @@ jobs:
           toolchain: stable
           override: true
           target: wasm32-unknown-unknown
-      - name: Use Node.js 12
-        uses: actions/setup-node@v1
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: "12"
-      # TODO(gj): remove once https://github.com/rustwasm/wasm-pack/issues/1097 is resolved
-      - name: Install wasm-pack 0.10.1
-        if: runner.os == 'Windows'
-        run: curl https://raw.githubusercontent.com/rustwasm/wasm-pack/1dc41bc09745b5c5f87fca9eddfb65b5b3586ddc/docs/_installer/init.sh -sSf | sed 's/$VERSION/v0.10.1/g' | sh
+          node-version: "20"
       - name: Install wasm-pack
-        if: runner.os != 'Windows'
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       # https://github.com/microsoft/vscode-docs/blob/ad7206ed4184f5807871ecab8bd235a712208067/api/working-with-extensions/continuous-integration.md#github-actions
       - run: xvfb-run -a make test
